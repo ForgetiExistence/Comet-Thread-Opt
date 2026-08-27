@@ -1,52 +1,89 @@
-name: Build Comet Module
+name: Build Comet Module (Fuxi-8G2)
 
 on:
   push:
-    branches:
-      - main
-      - fuxi-8g2
+    branches: [fuxi-8g2]
+    paths:
+      - 'module/**'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NDK_VERSION: '27.2.12479018'
+  AKI_APP_OPT_REF: '1.1.0'
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Comet rules & module shell
         uses: actions/checkout@v4
 
-      - name: Validate repository
+      - name: Checkout AkiAppOpt core
+        uses: actions/checkout@v4
+        with:
+          repository: AkiHaza/AkiAppOpt
+          ref: ${{ env.AKI_APP_OPT_REF }}
+          path: akiappopt
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          local-cache: true
+
+      - name: Validate module shell
         run: |
           set -e
-          test -d app
-          test -d game
-          test -f README.md
+          for f in module/customize.sh module/action.sh module/service.sh \
+                   module/META-INF/com/google/android/update-binary; do
+            test -f "$f"
+            sh -n "$f"
+          done
           test -f app/App_Fuxi_8G2.txt
           test -f app/App_common.txt
           test -f game/Game_common.txt
+          echo "shell scripts OK"
 
-      - name: Get version
-        id: version
+      - name: Build AkiAppOpt binaries
+        shell: bash
         run: |
-          VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo fuxi-8g2)"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          source_file="$GITHUB_WORKSPACE/akiappopt/module/AppOpt.c"
+          module_dir="$GITHUB_WORKSPACE/module"
+          toolchain="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          build() {
+            mkdir -p "$module_dir/bin/$1"
+            "$toolchain/$2" -O2 -ffunction-sections -fdata-sections -s \
+              -Wl,--gc-sections -o "$module_dir/bin/$1/AppOpt" "$source_file"
+            chmod 0755 "$module_dir/bin/$1/AppOpt"
+          }
+          build arm64-v8a   aarch64-linux-android21-clang
+          build armeabi-v7a armv7a-linux-androideabi21-clang
+          build x86_64      x86_64-linux-android21-clang
+          file "$module_dir"/bin/*/AppOpt
 
-      - name: Build configuration package
+      - name: Package module
+        id: package
+        shell: bash
         run: |
-          set -e
-          mkdir -p dist/package
-          cp -a app game README.md ChangeLog.txt dist/package/ 2>/dev/null || true
-          cd dist/package
-          zip -r "../Comet-Thread-Opt-${{ steps.version.outputs.version }}.zip" .
+          set -euo pipefail
+          version="$(sed -n 's/^version=//p' module/module.prop | head -n1)"
+          artifact="Comet-Thread-Opt-${version}.zip"
+          (cd module && zip -r -9 "../${artifact}" . -x 'bin/*/.gitkeep')
+          sha256sum "${artifact}" | tee "${artifact}.sha256"
+          echo "artifact=${artifact}" >> "$GITHUB_OUTPUT"
 
-      - name: Generate SHA256
-        run: |
-          cd dist
-          sha256sum *.zip > SHA256SUMS.txt
-
-      - name: Upload Artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Comet-Thread-Opt-${{ steps.version.outputs.version }}
-          path: dist/*
+          name: ${{ steps.package.outputs.artifact }}
+          path: |
+            ${{ steps.package.outputs.artifact }}
+            ${{ steps.package.outputs.artifact }}.sha256
           if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,6 @@
+id=AppOpt
+name=Comet Thread Opt (Fuxi)
+version=Fuxi-8G2.8.0
+versionCode=80
+author=Suto & 秋山羽桜, ported by ForgetiExistence
+description=彗星线程分配 自动适配版 (Fuxi/小米13 8Gen2)
