@@ -15,26 +15,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate module
+      - name: Validate repository
         run: |
           set -e
-          test -f module/module.prop
-          test -f module/service.sh
-          test -f module/applist.conf
-          test -f module/gamelist.conf
+          test -d app
+          test -d game
+          test -f README.md
+          test -f app/App_Fuxi_8G2.txt
+          test -f app/App_common.txt
+          test -f game/Game_common.txt
 
       - name: Get version
         id: version
         run: |
-          VERSION=$(grep '^version=' module/module.prop | cut -d= -f2-)
+          VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo fuxi-8g2)"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Build ZIP
+      - name: Build configuration package
         run: |
           set -e
-          mkdir -p dist
-          cd module
-          zip -r "../dist/Comet-Thread-Opt-${{ steps.version.outputs.version }}.zip" .
+          mkdir -p dist/package
+          cp -a app game README.md ChangeLog.txt dist/package/ 2>/dev/null || true
+          cd dist/package
+          zip -r "../Comet-Thread-Opt-${{ steps.version.outputs.version }}.zip" .
 
       - name: Generate SHA256
         run: |
