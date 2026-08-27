@@ -16,6 +16,10 @@ on:
         options:
           - stable
           - dev
+      core_repo:
+        description: 'Core repository (dev channel only, e.g. your fork)'
+        required: false
+        default: 'AkiHaza/AkiAppOpt'
 
 permissions:
   contents: read
@@ -25,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CORE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.core_channel || 'stable' }}
+      CORE_REPO: ${{ github.event_name == 'workflow_dispatch' && inputs.core_repo || 'AkiHaza/AkiAppOpt' }}
 
     steps:
       - name: Checkout Comet rules & module shell
@@ -36,16 +41,18 @@ jobs:
           if [ "$CORE_CHANNEL" = "dev" ]; then
             echo "ref=Dev"     >> "$GITHUB_OUTPUT"
             echo "suffix=-dev" >> "$GITHUB_OUTPUT"
+            echo "repo=$CORE_REPO" >> "$GITHUB_OUTPUT"
           else
             echo "ref=1.1.0"   >> "$GITHUB_OUTPUT"
             echo "suffix="     >> "$GITHUB_OUTPUT"
+            echo "repo=AkiHaza/AkiAppOpt" >> "$GITHUB_OUTPUT"
           fi
           echo "channel=$CORE_CHANNEL" >> "$GITHUB_OUTPUT"
 
       - name: Checkout AkiAppOpt core
         uses: actions/checkout@v4
         with:
-          repository: AkiHaza/AkiAppOpt
+          repository: ${{ steps.chan.outputs.repo }}
           ref: ${{ steps.chan.outputs.ref }}
           path: akiappopt
 
