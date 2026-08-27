@@ -1,0 +1,60 @@
+# Fuxi / Snapdragon 8 Gen 2
+# CPU topology used by this profile:
+# e-core  = CPU0-2
+# p-core  = CPU3-6
+# hp-core = CPU7
+#
+# Do NOT port the 8G3 numeric ranges directly. This profile deliberately
+# uses semantic CPU tiers so the rules match the observed Fuxi topology.
+#
+# The first version intentionally keeps the explicit rule set small.
+# Unlisted applications should be handled by AkiAppOpt's dynamic balancer.
+
+# MIUI / HyperOS UI
+com.miui.home{RenderThread}=p-core
+com.android.systemui{RenderThread}=p-core
+
+# Communications
+# WeChat
+com.tencent.mm{RenderThread}=p-core
+com.tencent.mm{binder:*}=p-core
+com.tencent.mm=e-core,p-core
+
+# QQ
+com.tencent.mobileqq{RenderThread}=p-core
+com.tencent.mobileqq{MediaCodec_loop}=p-core
+com.tencent.mobileqq=e-core,p-core
+
+# Telegram
+org.telegram.messenger{RenderThread}=p-core
+org.telegram.messenger{Thread-*}=p-core
+org.telegram.messenger=e-core,p-core
+
+# Browsers
+# Via
+mark.via{RenderThread}=p-core
+mark.via=e-core,p-core
+
+# Chrome
+com.android.chrome{RenderThread}=p-core
+com.android.chrome=e-core,p-core
+
+# Video / media
+# Bilibili
+tv.danmaku.bili{RenderThread}=p-core
+tv.danmaku.bili{MediaCodec_loop}=p-core
+tv.danmaku.bili=e-core,p-core
+
+# YouTube
+com.google.android.youtube{RenderThread}=p-core
+com.google.android.youtube{MediaCodec_loop}=p-core
+com.google.android.youtube=e-core,p-core
+
+# Social
+com.coolapk.market{RenderThread}=p-core
+com.coolapk.market{binder:*}=p-core
+com.coolapk.market=e-core,p-core
+
+# Games are intentionally not listed here. Put game package names in
+# gamelist.conf so AkiAppOpt's game load-balancing policy can use hp-core
+# for the highest-load thread and p-core for the second-highest thread.
