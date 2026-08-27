@@ -7,27 +7,53 @@ on:
       - 'module/**'
       - '.github/workflows/build.yml'
   workflow_dispatch:
+    inputs:
+      core_channel:
+        description: 'AkiAppOpt core channel'
+        required: false
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - dev
 
 permissions:
   contents: read
 
-env:
-  AKI_APP_OPT_REF: '1.1.0'
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CORE_CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.core_channel || 'stable' }}
 
     steps:
       - name: Checkout Comet rules & module shell
         uses: actions/checkout@v4
 
+      - name: Resolve core channel
+        id: chan
+        run: |
+          if [ "$CORE_CHANNEL" = "dev" ]; then
+            echo "ref=Dev"     >> "$GITHUB_OUTPUT"
+            echo "suffix=-dev" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=1.1.0"   >> "$GITHUB_OUTPUT"
+            echo "suffix="     >> "$GITHUB_OUTPUT"
+          fi
+          echo "channel=$CORE_CHANNEL" >> "$GITHUB_OUTPUT"
+
       - name: Checkout AkiAppOpt core
         uses: actions/checkout@v4
         with:
           repository: AkiHaza/AkiAppOpt
-          ref: ${{ env.AKI_APP_OPT_REF }}
+          ref: ${{ steps.chan.outputs.ref }}
           path: akiappopt
+
+      - name: Resolve core commit
+        id: core
+        run: |
+          echo "sha=$(git -C akiappopt rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          git -C akiappopt log -1 --oneline
 
       - name: Setup Android NDK (official r27d)
         shell: bash
@@ -57,13 +83,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source_file="$GITHUB_WORKSPACE/akiappopt/module/AppOpt.c"
+          aki="$GITHUB_WORKSPACE/akiappopt/module"
           module_dir="$GITHUB_WORKSPACE/module"
           toolchain="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          sources="$aki/AppOpt.c"
+          if [ -f "$aki/load_balancer.c" ]; then
+            echo "core channel provides load_balancer -> linking it"
+            sources="$sources $aki/load_balancer.c"
+          fi
           build() {
             mkdir -p "$module_dir/bin/$1"
-            "$toolchain/$2" -O2 -ffunction-sections -fdata-sections -s \
-              -Wl,--gc-sections -o "$module_dir/bin/$1/AppOpt" "$source_file"
+            $toolchain/$2 -O2 -ffunction-sections -fdata-sections -s \
+              -Wl,--gc-sections -o "$module_dir/bin/$1/AppOpt" $sources
             chmod 0755 "$module_dir/bin/$1/AppOpt"
           }
           build arm64-v8a   aarch64-linux-android21-clang
@@ -77,7 +108,13 @@ jobs:
         run: |
           set -euo pipefail
           version="$(sed -n 's/^version=//p' module/module.prop | head -n1)"
-          artifact="Comet-Thread-Opt-${version}.zip"
+          suffix="${{ steps.chan.outputs.suffix }}"
+          core_sha="${{ steps.core.outputs.sha }}"
+          if [ -n "$suffix" ]; then
+            artifact="Comet-Thread-Opt-${version}${suffix}-${core_sha}.zip"
+          else
+            artifact="Comet-Thread-Opt-${version}.zip"
+          fi
           (cd module && zip -r -9 "../${artifact}" . -x 'bin/*/.gitkeep')
           sha256sum "${artifact}" | tee "${artifact}.sha256"
           echo "artifact=${artifact}" >> "$GITHUB_OUTPUT"

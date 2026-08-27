@@ -65,6 +65,10 @@ detect_soc_profile() {
             SOC_8G3=on
             PROFILE_NAME=8G3
             ;;
+        *sm8550*|*kalama*|*fuxi*)
+            SOC_8G3=off
+            PROFILE_NAME=Fuxi_8G2
+            ;;
         *)
             SOC_8G3=off
             PROFILE_NAME=Common
