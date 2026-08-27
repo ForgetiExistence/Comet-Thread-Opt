@@ -143,9 +143,9 @@ echo "-------------------------------------"
 echo "📝 更新内容:"
 
 if [ -n "$LAST_TIME" ]; then
-    FETCH_URL="${API_URL}?sha=main&since=${LAST_TIME}&per_page=${PER_PAGE}"
+    FETCH_URL="${API_URL}?sha=fuxi-8g2&since=${LAST_TIME}&per_page=${PER_PAGE}"
 else
-    FETCH_URL="${API_URL}?sha=main&per_page=${PER_PAGE}"
+    FETCH_URL="${API_URL}?sha=fuxi-8g2&per_page=${PER_PAGE}"
 fi
 
 HTTP_CODE=""
