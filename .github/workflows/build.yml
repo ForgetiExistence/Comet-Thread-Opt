@@ -12,7 +12,6 @@ permissions:
   contents: read
 
 env:
-  NDK_VERSION: '27.2.12479018'
   AKI_APP_OPT_REF: '1.1.0'
 
 jobs:
@@ -30,11 +29,16 @@ jobs:
           ref: ${{ env.AKI_APP_OPT_REF }}
           path: akiappopt
 
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: ${{ env.NDK_VERSION }}
-          local-cache: false
+      - name: Setup Android NDK (official r27d)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 -o ndk.zip "https://dl.google.com/android/repository/android-ndk-r27d-linux.zip"
+          unzip -q ndk.zip -d "$RUNNER_TEMP/ndk"
+          rm -f ndk.zip
+          echo "ANDROID_NDK_HOME=$RUNNER_TEMP/ndk/android-ndk-r27d" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/ndk/android-ndk-r27d/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version | head -1
 
       - name: Validate module shell
         run: |
